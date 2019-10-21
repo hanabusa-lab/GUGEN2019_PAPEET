@@ -164,6 +164,7 @@ def exec_led_thread() :
         #モードごとの実行
         if gled_pattern == LEDPattern.WIPE :
             #print("thread exec color Wipe ", gled_color)
+            #Bonnetと競合しないように、値の更新がなかったら、そのままにする。
             if gled_color != gpre_led_color :
                 print("update color")
                 color_wipe(pixels, (gled_color[1], gled_color[0], gled_color[2]))
@@ -183,7 +184,7 @@ def exec_led_thread() :
 
 #LEDコントロール情報の更新
 def update_led_cntrl(d):
-    global gled_cntrl, gled_pattern, gled_time, gled_color, gled_start_time
+    global gled_cntrl, gled_pattern, gled_time, gled_color, gled_start_time, gpre_led_color
 
     print("exec_led_cnrl arg=",d)
 
@@ -199,6 +200,7 @@ def update_led_cntrl(d):
     #色の確認
     if d.get('COLOR') != None :
          gled_color = (d.get('COLOR')[0], d.get('COLOR')[1], d.get('COLOR')[2])
+         gpre_led_color = (0, 0, 0)
 
     #時間の確認
     if d.get('TIME') != None :

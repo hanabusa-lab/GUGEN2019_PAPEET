@@ -62,7 +62,7 @@ def serv_move(stype, val) :
     gserv[stype].value = val
 
 #サーボ駆動(滑らか)
-def serv_smooth_move(stype, sval, eval) :
+def serv_smooth_move(stype, sval, eval, scale) :
     global gserv
     fg = 1
     if  sval == eval :
@@ -70,8 +70,8 @@ def serv_smooth_move(stype, sval, eval) :
     if eval < sval :
         fg = -1
 
-    for i in range((int)(sval*SMOOTH_SAMPLING_SCALE), int(eval*SMOOTH_SAMPLING_SCALE), fg):
-        value = float((i)/(SMOOTH_SAMPLING_SCALE))
+    for i in range((int)(sval*scale), int(eval*scale), fg):
+        value = float((i)/(scale))
         #print("smooth move",value)
         gserv[stype].value = value
         sleep(SMOOTH_SAMPLING_TIME)
@@ -179,6 +179,7 @@ def exec_serv_thread() :
 
         if gserv_pattern == ServPattern.HEAD_UNUN :
             print("head unun")
+            """
             serv_move(ServType.HEAD, 0)
             sleep(0.2)
             serv_move(ServType.HEAD, -0.5)
@@ -189,47 +190,64 @@ def exec_serv_thread() :
             sleep(0.2)
             serv_move(ServType.HEAD, 0)
             sleep(0.5)
+            """
+            scale = 30
+            serv_smooth_move(ServType.HEAD, 0, -0.5, scale)
+            #sleep(0.2)
+            serv_smooth_move(ServType.HEAD, -0.5, 0, scale)
+            #sleep(0.2)
+            serv_smooth_move(ServType.HEAD, 0, -0.5, scale)
+            #sleep(0.2)
+            serv_smooth_move(ServType.HEAD, -0.5, 0, scale)
+            #sleep(0.2)
+            #serv_smoth_move(ServType.HEAD, 0, )
+
+
+
             #電源スリープ
             serv_move(ServType.HEAD, None)
+
+            serv_smooth_move
 
         if gserv_pattern == ServPattern.BODY_CENTER :
             print("body center")
             #closeをvalue 0 状態にする。
-            serv_smooth_move(ServType.BODY, pre_body_val, 0)
+            serv_smooth_move(ServType.BODY, pre_body_val, 0, SMOOTH_SAMPLING_SCALE )
             serv_move(ServType.BODY, None)
             pre_body_val = 0
 
         if gserv_pattern == ServPattern.BODY_RIGHT :
             print("body right")
             #closeをvalue 0 状態にする。
-            serv_smooth_move(ServType.BODY, pre_body_val, 0.9)
+            serv_smooth_move(ServType.BODY, pre_body_val, 0.9, SMOOTH_SAMPLING_SCALE )
             pre_body_val = 0.9
 
         if gserv_pattern == ServPattern.BODY_RIGHT_SMALL :
             print("body right small")
             #closeをvalue 0 状態にする。
-            serv_smooth_move(ServType.BODY, pre_body_val, 0.5)
+            serv_smooth_move(ServType.BODY, pre_body_val, 0.5, SMOOTH_SAMPLING_SCALE )
             pre_body_val = 0.5
 
         if gserv_pattern == ServPattern.BODY_LEFT :
             print("body left")
             #closeをvalue 0 状態にする。
-            serv_smooth_move(ServType.BODY, pre_body_val, -0.9)
+            serv_smooth_move(ServType.BODY, pre_body_val, -0.9, SMOOTH_SAMPLING_SCALE )
             pre_body_val = -0.9
 
         if gserv_pattern == ServPattern.BODY_LEFT_SMALL :
             print("body left small")
             #closeをvalue 0 状態にする。
-            serv_smooth_move(ServType.BODY, pre_body_val, -0.5)
+            serv_smooth_move(ServType.BODY, pre_body_val, -0.5, SMOOTH_SAMPLING_SCALE )
             pre_body_val = -0.5
 
         if gserv_pattern == ServPattern.BODY_SWING :
             print("body swign")
             #closeをvalue 0 状態にする。
-            serv_smooth_move(ServType.BODY, pre_body_val, 0)
-            serv_smooth_move(ServType.BODY, 0, 0.5)
-            serv_smooth_move(ServType.BODY, 0.5, -0.5)
-            serv_smooth_move(ServType.BODY, -0.5, 0)
+            scale = 30
+            serv_smooth_move(ServType.BODY, pre_body_val, 0, scale  )
+            serv_smooth_move(ServType.BODY, 0, 0.3, scale  )
+            serv_smooth_move(ServType.BODY, 0.3, -0.3, scale  )
+            serv_smooth_move(ServType.BODY, -0.3, 0, scale  )
             serv_move(ServType.BODY, None)
 
             pre_body_val = 0
