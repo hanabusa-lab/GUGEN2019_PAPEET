@@ -39,3 +39,4 @@ class ServPattern(IntEnum):
     BODY_LEFT = 11
     BODY_LEFT_SMALL = 12
     BODY_SWING = 13
+    BODY_SWING_SMALL = 14

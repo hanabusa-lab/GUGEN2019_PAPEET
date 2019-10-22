@@ -7,6 +7,7 @@ import datetime
 from enum import IntEnum
 import fasteners
 import json
+import os
 
 from aiy.board import Board, Led
 from aiy.cloudspeech import CloudSpeechClient
@@ -31,6 +32,8 @@ LED_LOCK_FILE = '/tmp/lockfile_led'
 SERV_REQ_FILE = "../dat/serv_req.json"
 #サーボのロックファイル
 SERV_LOCK_FILE = '/tmp/lockfile_serv'
+
+AFTER_WAIT_RESTART ='../dat/restart'
 
 #LED用ロックファイル
 gled_lockfile = None
@@ -208,7 +211,7 @@ def exec_behavior_node(node):
     #聞いた後の頷き
     head_mode = int(node['head_mode'])
     if  head_mode != 0 :
-        print('exec head')
+        print('exec head-------------')
         exec_head(head_mode)
 
 
@@ -234,6 +237,15 @@ def exec_behavior_node(node):
 
     #after sleepの実行
     after_wait = int(node['after_wait'] or 0)
+
+    if after_wait == -1:
+        #after_waitが-1の場合には、dat/restartファイルができるまで、待ち状態にする。
+        while(True) :
+            if os.path.exists(AFTER_WAIT_RESTART ) == True :
+                os.remove(AFTER_WAIT_RESTART )
+                break
+            print("waiting after wait restart file")
+            time.sleep(SLEEP_SAMPLING_TIME)
     if after_wait != 0 :
         print("after wait", after_wait)
         st=datetime.datetime.now()
@@ -244,11 +256,9 @@ def exec_behavior_node(node):
             if delta.seconds > after_wait :
                 break;
 
-
-
     #次のnodeの取得
     #sentimentの場合には?で、次のインデックスが区切られています。
-    if '?' in node['next_node'] :
+    if '?' in str(node['next_node']) :
         tmp_index = str(node['next_node']).split('?')
         if len(tmp_index) == 1:
             next_node_index = int(tmp_index[0])
@@ -275,7 +285,7 @@ def exec_behavior_node(node):
 def exec_survey():
     print("exec_survey")
     #ヒアリング時のbehaviorの設定
-    behav = Behavior("../dat/survey.csv")
+    behav = Behavior("../dat/scene.csv")
 
     index = 0
     #behaviorがあるまで実行

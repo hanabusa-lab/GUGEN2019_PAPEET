@@ -164,6 +164,7 @@ def exec_serv_thread() :
             print("head center")
             serv_move(ServType.HEAD, 0)
             sleep(1)
+            serv_move(ServType.HEAD, None)
 
         if gserv_pattern == ServPattern.HEAD_UP :
             print("head up")
@@ -245,14 +246,25 @@ def exec_serv_thread() :
             #closeをvalue 0 状態にする。
             scale = 30
             serv_smooth_move(ServType.BODY, pre_body_val, 0, scale  )
-            serv_smooth_move(ServType.BODY, 0, 0.3, scale  )
-            serv_smooth_move(ServType.BODY, 0.3, -0.3, scale  )
-            serv_smooth_move(ServType.BODY, -0.3, 0, scale  )
+            serv_smooth_move(ServType.BODY, 0, 0.35, scale  )
+            serv_smooth_move(ServType.BODY, 0.35, -0.35, scale  )
+            serv_smooth_move(ServType.BODY, -0.35, 0, scale  )
             serv_move(ServType.BODY, None)
 
             pre_body_val = 0
 
-            #serv_move(ServType.BODY, None)
+        if gserv_pattern == ServPattern.BODY_SWING_SMALL :
+            print("body swing small")
+            #closeをvalue 0 状態にする。
+            scale = 20
+            serv_smooth_move(ServType.BODY, pre_body_val, 0, scale  )
+            serv_smooth_move(ServType.BODY, 0, 0.15, scale  )
+            serv_smooth_move(ServType.BODY, 0.15, -0.15, scale  )
+            serv_smooth_move(ServType.BODY, -0.15, 0, scale  )
+            serv_move(ServType.BODY, None)
+
+            pre_body_val = 0
+
 
 
         #print("sleep thread")
