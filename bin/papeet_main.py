@@ -9,6 +9,10 @@ import fasteners
 import json
 import os
 import requests
+import re
+import jaconv
+import timeout_decorator
+import base64
 
 from aiy.board import Board, Led
 from aiy.cloudspeech import CloudSpeechClient
@@ -17,6 +21,8 @@ from sentiment_google import SentimentGoogle
 from behavior import Behavior
 from papeet_def import *
 
+#サーボリクエストのフラグ
+SERV_ENABLE_FG = False
 # サーバーのIPアドレス
 SERV_IP = "192.168.3.7:5000"
 
@@ -67,7 +73,17 @@ def jtalk_create_message(t):
     #htsvoice=['-m','/usr/share/hts-voice/nitech-jp-atr503-m001/nitech_jp_atr503_m001.htsvoice']
     htsvoice=['-m','/usr/share/hts-voice/yoe/yoe.htsvoice']
     speed=['-r','1.0']
-    outwav=['-ow','../dat/open_jtalk.wav']
+    #outwav=['-ow','../dat/open_jtalk.wav']
+    #テキストのエンコード
+    enc_txt = str(base64.urlsafe_b64encode(t.encode('utf-8')))
+    print("enc_txt", enc_txt)
+
+    #ファイルがあったら処理を抜ける
+    path = '../voice/'+enc_txt+'.wav'
+    if os.path.exists(path) == True :
+        return
+
+    outwav=['-ow',path]
     cmd=open_jtalk+mech+htsvoice+speed+outwav
     c = subprocess.Popen(cmd,stdin=subprocess.PIPE)
     c.stdin.write(t.encode())
@@ -77,7 +93,7 @@ def jtalk_create_message(t):
     #wr = subprocess.Popen(aplay)
     #wr.wait()
 
-def jtalk_say_message():
+def jtalk_say_message(t):
     """
     open_jtalk=['open_jtalk']
     mech=['-x','/var/lib/mecab/dic/open-jtalk/naist-jdic']
@@ -92,7 +108,11 @@ def jtalk_say_message():
     c.stdin.close()
     c.wait()
     """
-    aplay = ['aplay','-q','../dat/open_jtalk.wav']
+    #テキストのファイル名で実行する
+    enc_txt = str(base64.urlsafe_b64encode(t.encode('utf-8')))
+    #aplay = ['aplay','-q','../dat/open_jtalk.wav']
+    aplay = ['aplay','-q','../voice/'+enc_txt+'.wav']
+
     wr = subprocess.Popen(aplay)
     wr.wait()
 
@@ -163,9 +183,10 @@ def exec_head(mode) :
 
 #サーバへ送付するテキストの送付
 def send_say_text(text) :
-    cmd = "curl -X POST -H 'Accept:application/json' -H 'Content-Type:application/json' -d '{\"TYPE\":\"1\", \"TEXT\":\""+text+"\"}' "+SERV_IP
-    print("serv send="cmd)
-    os.system(cmd)
+    if SERV_ENABLE_FG == True :
+        cmd = "curl -X POST -H 'Accept:application/json' -H 'Content-Type:application/json' -d '{\"TYPE\":\"1\", \"TEXT\":\""+text+"\"}' "+SERV_IP
+        print("serv send=",cmd)
+        os.system(cmd)
 
 #振る舞いノードの実行
 def exec_behavior_node(node):
@@ -213,7 +234,7 @@ def exec_behavior_node(node):
         send_say_text(speech_text)
 
         #音の読み上げ
-        jtalk_say_message()
+        jtalk_say_message(speech_text)
 
 
     #ledの停止処理
@@ -294,11 +315,11 @@ def exec_behavior_node(node):
     return next_node_index
 
 
-#アンケートのヒアリング
-def exec_survey():
-    print("exec_survey")
+def exec_scenario(scenario):
     #ヒアリング時のbehaviorの設定
-    behav = Behavior("../dat/scene.csv")
+    #behav = Behavior("../dat/scene.csv")
+    behav = Behavior(scenario)
+
 
     index = 0
     #behaviorがあるまで実行
@@ -317,7 +338,15 @@ def exec_survey():
 
     #behaviorに従った動作の実行
 
+def recognize() :
+    """
+    for i in range(100):
+        print(i)
+        time.sleep(1)
+    """
 
+    text = gclient.recognize(language_code=glanguage,hint_phrases=hists)
+    return text
 
 def locale_language():
     language, _ = locale.getdefaultlocale()
@@ -347,8 +376,34 @@ if __name__ == '__main__':
     gled_lockfile =fasteners.InterProcessLock(LED_LOCK_FILE)
     gserv_lockfile =fasteners.InterProcessLock(SERV_LOCK_FILE)
 
-    #指定されたモードごとの動作を行う
-    if gmode == BehaviorMode.SURVEY :
-        exec_survey()
+
+    while(True) :
+        #待ち状態
+        print("start listening")
+        hists = "パペート, ぱぺーと"
+        text = None
+        #text = gclient.recognize(language_code=glanguage,hint_phrases=hists)
+        text = recognize()
+
+        if text is None:
+            logging.info('You said nothing.')
+            continue
+
+        logging.info('You said: "%s"' % text)
+        #テキストをカタカナに変換
+
+        ktext = jaconv.hira2kata(text)
+        print("katakana=", ktext)
+
+        #挨拶
+        retxt = re.findall('パペット|パペート|パ|ト', ktext)
+        print("retxt=", retxt)
+        if len(retxt) > 0 :
+            exec_scenario("../dat/hello.csv")
+
+
+        #指定されたモードごとの動作を行う
+        #if gmode == BehaviorMode.SURVEY :
+        #    exec_survey()
 
     print("end papeet_main")
