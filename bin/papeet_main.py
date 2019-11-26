@@ -8,6 +8,7 @@ from enum import IntEnum
 import fasteners
 import json
 import os
+import requests
 
 from aiy.board import Board, Led
 from aiy.cloudspeech import CloudSpeechClient
@@ -15,6 +16,9 @@ from aiy.cloudspeech import CloudSpeechClient
 from sentiment_google import SentimentGoogle
 from behavior import Behavior
 from papeet_def import *
+
+# サーバーのIPアドレス
+SERV_IP = "192.168.3.7:5000"
 
 #sleepのサンプリングタイム
 SLEEP_SAMPLING_TIME = 0.5
@@ -100,10 +104,10 @@ def exec_led(mode) :
     #LEDリクエストファイルの作成
     if mode == 1 :
         #mode 1. 白点灯
-        d={'PATTERN':int(LEDPattern.WIPE), 'COLOR':(255, 255, 255), 'CNTRL':int(LEDCntrl.START), 'TIME':30}
+        d={'PATTERN':int(LEDPattern.WIPE), 'COLOR':(255, 255, 255), 'CNTRL':int(LEDCntrl.START), 'TIME':10}
     elif mode == 2:
         #mode 2. 黄色点滅
-        d={'PATTERN':int(LEDPattern.WIPE), 'COLOR':(255, 255, 0), 'CNTRL':int(LEDCntrl.START), 'TIME':30}
+        d={'PATTERN':int(LEDPattern.WIPE), 'COLOR':(255, 255, 0), 'CNTRL':int(LEDCntrl.START), 'TIME':10}
 
     print(d)
     gled_lockfile.acquire()
@@ -157,6 +161,12 @@ def exec_head(mode) :
     gserv_lockfile.release()
 
 
+#サーバへ送付するテキストの送付
+def send_say_text(text) :
+    cmd = "curl -X POST -H 'Accept:application/json' -H 'Content-Type:application/json' -d '{\"TYPE\":\"1\", \"TEXT\":\""+text+"\"}' "+SERV_IP
+    print("serv send="cmd)
+    os.system(cmd)
+
 #振る舞いノードの実行
 def exec_behavior_node(node):
     global gpre_text
@@ -198,6 +208,9 @@ def exec_behavior_node(node):
         if mouse_mode != 0 :
             print('exec mouse')
             exec_mouse(mouse_mode)
+
+        #サーバへテキストの送付
+        send_say_text(speech_text)
 
         #音の読み上げ
         jtalk_say_message()
