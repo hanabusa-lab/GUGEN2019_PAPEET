@@ -13,6 +13,7 @@ import re
 import jaconv
 import timeout_decorator
 import base64
+#from goto import goto, label
 
 from aiy.board import Board, Led
 from aiy.cloudspeech import CloudSpeechClient
@@ -193,6 +194,9 @@ def exec_behavior_node(node):
     global gpre_text
     print(node)
 
+    #次の条件分岐で用いる
+    score = 0
+
     #ledの実行
     led_mode = int(node['led_mode'])
     if led_mode != 0 :
@@ -248,7 +252,6 @@ def exec_behavior_node(node):
         print('exec head-------------')
         exec_head(head_mode)
 
-
     #認識の実行
     listening_mode = int(node['listening_mode'])
     if listening_mode != 0 :
@@ -256,13 +259,13 @@ def exec_behavior_node(node):
         text = gclient.recognize(language_code=glanguage,hint_phrases=None)
         if text is None:
             logging.info('You said nothing.')
-
-        logging.info('You said: "%s"' % text)
-        #前の文章の保存
-        gpre_text = text
+            score = -1
+        else :
+            logging.info('You said: "%s"' % text)
+            #前の文章の保存
+            gpre_text = text
 
     #感情分析の実行
-    score = 0
     sentiment_mode = int(node['sentiment_mode'])
     if sentiment_mode != 0:
         response = SentimentGoogle().sentiment(gpre_text)
@@ -289,11 +292,13 @@ def exec_behavior_node(node):
             delta = now - st
             if delta.seconds > after_wait :
                 break;
+    #最後の処理に抜ける場合
 
     #次のnodeの取得
-    #sentimentの場合には?で、次のインデックスが区切られています。
+    #次のノードを分岐するときには?で、次のインデックスが区切られています。
     if '?' in str(node['next_node']) :
         tmp_index = str(node['next_node']).split('?')
+        print("tmp_index=",tmp_index)
         if len(tmp_index) == 1:
             next_node_index = int(tmp_index[0])
         elif len(tmp_index) == 2:
@@ -301,6 +306,7 @@ def exec_behavior_node(node):
                 next_node_index = int(tmp_index[0])
             else :
                 next_node_index = int(tmp_index[1])
+            print("next_node=", next_node_index)
         elif len(tmp_index) == 2:
             if score >= SENTIMENT_THRETHOLD :
                 next_node_index = int(tmp_index[0])
@@ -378,6 +384,10 @@ if __name__ == '__main__':
 
 
     while(True) :
+        #シナリオごとの初期化処理
+        #前に聞いた文字列をクリアする。
+        gpre_text = ""
+
         #待ち状態
         print("start listening")
         hists = "パペート, ぱぺーと"
@@ -396,10 +406,21 @@ if __name__ == '__main__':
         print("katakana=", ktext)
 
         #挨拶
-        retxt = re.findall('パペット|パペート|パ|ト', ktext)
-        print("retxt=", retxt)
+        retxt = re.findall('パペット|パペート|^パ(\S+)ト$|コンニチ', ktext)
         if len(retxt) > 0 :
+            print("exec hello")
             exec_scenario("../dat/hello.csv")
+            continue
+
+        #注文
+        retxt = re.findall('注文|オーダー', ktext)
+        if len(retxt) > 0 :
+            print("exec chuumon")
+            exec_scenario("../dat/chuumon.csv")
+            continue
+
+
+
 
 
         #指定されたモードごとの動作を行う
