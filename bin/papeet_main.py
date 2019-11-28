@@ -182,6 +182,21 @@ def exec_head(mode) :
     gserv_lockfile.release()
 
 
+#Serv(Body部)の動作依頼
+def exec_body(mode) :
+    global gserv_lockfile
+
+    #Servリクエストファイルの作成
+    if mode == 1 :
+        #mode 1. 白点灯
+        d={'PATTERN':int(ServPattern.BODY_SWING_SMALL), 'CNTRL':int(LEDCntrl.START), 'TIME':1}
+
+    print(d)
+    gserv_lockfile.acquire()
+    with open(SERV_REQ_FILE, 'w') as f:
+        json.dump(d, f, indent=4)
+    gserv_lockfile.release()
+
 #サーバへ送付するテキストの送付
 def send_say_text(text) :
     if SERV_ENABLE_FG == True :
@@ -271,6 +286,15 @@ def exec_behavior_node(node):
         response = SentimentGoogle().sentiment(gpre_text)
         print("sentence=", gpre_text, "sentiment respose", response, "score", response['score'])
         score = response['score']
+
+    #bodyの実行
+    try :
+        body_mode = int(node['body_mode'])
+        if body_mode != 0:
+            print("exec body")
+            exec_body(body_mode)
+    except :
+        print("body_mode does not exist")
 
     #after sleepの実行
     after_wait = int(node['after_wait'] or 0)
@@ -418,6 +442,21 @@ if __name__ == '__main__':
             print("exec chuumon")
             exec_scenario("../dat/chuumon.csv")
             continue
+
+        #アンケート
+        retxt = re.findall('ゴチソウ', ktext)
+        if len(retxt) > 0 :
+            print("exec survey")
+            exec_scenario("../dat/kansou.csv")
+            continue
+
+        #バイバイ
+        retxt = re.findall('バイバイ|マタネ|さようなら', ktext)
+        if len(retxt) > 0 :
+            print("exec baibai")
+            exec_scenario("../dat/baibai.csv")
+            continue
+
 
 
 
