@@ -10,11 +10,16 @@ class CMDType(IntEnum):
     NONE = 0
     TEXT_SAY = 1
     TEXT_LISTEN = 2
-    IMG_BILL = 3
+    IMG_ORDER = 3
+    IMG_BILL = 4
+    IMG_PIC = 5
+    CLEAR = 6
 
 CMD_REQ='../data/cmd_req.json'
 MAX_CHARA_LEN = 12
 LOCK_FILE = '/tmp/papeet_lockfile'
+
+gbillcnt = 0
 
 class MyApp(wx.Frame):
     def __init__(self, parent, title):
@@ -95,6 +100,7 @@ class MyApp(wx.Frame):
         #画面のオフセットを算出する
         self.imageCtrl.SetPosition((posx ,25))
         self.imageCtrl.Show(True)
+        self.Update()
         #self.main_panel.Refresh()
 
     def clear_all(self) :
@@ -105,6 +111,19 @@ class MyApp(wx.Frame):
 
     # 1秒間隔で呼ばれる関数
     def update(self, event):
+        global gbillcnt
+        #オーダーの表示更新
+        if gbillcnt != 0 :
+            filename = "../data/bill"+str(gbillcnt)+".jpg"
+            self.exec_cmd_img(filename)
+            print("bill number", gbillcnt)
+            gbillcnt = gbillcnt +1
+            if gbillcnt > 6 :
+                gbillcnt = 0
+            time.sleep(0.5)
+            return
+
+
         #jsonファイルの内容を確認する
         if os.path.exists(CMD_REQ) == True :
             with open(CMD_REQ) as f:
@@ -125,9 +144,20 @@ class MyApp(wx.Frame):
                 print("say")
                 self.exec_cmd_listen(d['TEXT'])
 
+            elif type == CMDType.IMG_ORDER:
+                print("img order")
+                self.exec_cmd_img("../data/order.jpg")
+
             elif type == CMDType.IMG_BILL:
-                print("img")
+                print("img bill")
+                gbillcnt = 1
+
+            elif type == CMDType.IMG_PIC:
+                print("img bill")
                 self.exec_cmd_img(d['IMG'])
+
+            elif type == CMDType.CLEAR:
+                self.clear_all()
 
 app = wx.App(False)
 frame = MyApp(None, "MyApp")

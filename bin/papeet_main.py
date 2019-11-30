@@ -13,6 +13,7 @@ import re
 import jaconv
 import timeout_decorator
 import base64
+import picamera
 #from goto import goto, label
 
 from aiy.board import Board, Led
@@ -23,7 +24,7 @@ from behavior import Behavior
 from papeet_def import *
 
 #サーボリクエストのフラグ
-SERV_ENABLE_FG = False
+SERV_ENABLE_FG = True
 # サーバーのIPアドレス
 SERV_IP = "192.168.3.7:5000"
 
@@ -66,6 +67,8 @@ gboard = None
 glanguage = None
 #前に聞いた文章
 gpre_text = ""
+
+gcamera = "" #カメラオブジェクト
 
 def jtalk_create_message(t):
     open_jtalk=['open_jtalk']
@@ -203,6 +206,56 @@ def send_say_text(text) :
         cmd = "curl -X POST -H 'Accept:application/json' -H 'Content-Type:application/json' -d '{\"TYPE\":\"1\", \"TEXT\":\""+text+"\"}' "+SERV_IP
         print("serv send=",cmd)
         os.system(cmd)
+#サーバへ送付するテキストの送付
+def listen_say_text(text) :
+    if SERV_ENABLE_FG == True :
+        cmd = "curl -X POST -H 'Accept:application/json' -H 'Content-Type:application/json' -d '{\"TYPE\":\"2\", \"TEXT\":\""+text+"\"}' "+SERV_IP
+        print("serv send=",cmd)
+        os.system(cmd)
+
+#サーバへ送付するテキストの送付
+def monitor_clear() :
+    if SERV_ENABLE_FG == True :
+        cmd = "curl -X POST -H 'Accept:application/json' -H 'Content-Type:application/json' -d '{\"TYPE\":\"6\"}' "+SERV_IP
+        print("serv send=",cmd)
+        os.system(cmd)
+
+#写真撮影
+def exec_picture() :
+
+
+    speech_text="写真とるよ"
+    #音の読み上げ
+    jtalk_create_message(speech_text)
+    send_say_text(speech_text)
+    jtalk_say_message(speech_text)
+
+    speech_text="ハイ"
+    #音の読み上げ
+    jtalk_create_message(speech_text)
+    send_say_text(speech_text)
+    jtalk_say_message(speech_text)
+
+    speech_text="チーズ"
+    #音の読み上げ
+    jtalk_create_message(speech_text)
+    send_say_text(speech_text)
+    jtalk_say_message(speech_text)
+
+    global gcamera
+    now= datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = '/home/pi/papeet/img/'+now+".jpg"
+    print("filename=", filename)
+    #cmd = 'raspistill -w 1200 -h 900 -n -t 10 -q 100 -e jpg -o '+filename
+    #os.system(cmd)
+    #画像の取得
+    gcamera.capture(filename)
+    time.sleep(1)
+
+    if SERV_ENABLE_FG == True :
+        cmd = "curl -X POST -F \"img=@"+filename+";type=img/jpg\" "+SERV_IP+"/send"
+        print("serv send=",cmd)
+        os.system(cmd)
 
 #振る舞いノードの実行
 def exec_behavior_node(node):
@@ -277,6 +330,7 @@ def exec_behavior_node(node):
             score = -1
         else :
             logging.info('You said: "%s"' % text)
+            listen_say_text(text)
             #前の文章の保存
             gpre_text = text
 
@@ -382,6 +436,13 @@ def locale_language():
     language, _ = locale.getdefaultlocale()
     return language
 
+#カメラの初期化
+def init_camera() :
+    global gcamera
+    gcamera = picamera.PiCamera()
+    gcamera.resolution = (1200, 700)
+    #gcamera.rotation=90
+
 if __name__ == '__main__':
 
     #引数の確認
@@ -405,7 +466,7 @@ if __name__ == '__main__':
     #                        hint_phrases=hints)
     gled_lockfile =fasteners.InterProcessLock(LED_LOCK_FILE)
     gserv_lockfile =fasteners.InterProcessLock(SERV_LOCK_FILE)
-
+    init_camera()
 
     while(True) :
         #シナリオごとの初期化処理
@@ -424,6 +485,7 @@ if __name__ == '__main__':
             continue
 
         logging.info('You said: "%s"' % text)
+        listen_say_text(text)
         #テキストをカタカナに変換
 
         ktext = jaconv.hira2kata(text)
@@ -457,9 +519,20 @@ if __name__ == '__main__':
             exec_scenario("../dat/baibai.csv")
             continue
 
+        #クリア
+        retxt = re.findall('クリア', ktext)
+        if len(retxt) > 0 :
+            monitor_clear()
+            continue
 
+        #写真
+        retxt = re.findall('シャシン|写真|チーズ', ktext)
+        print("写真")
+        if len(retxt) > 0 :
+            print("写真2")
 
-
+            exec_picture()
+            continue
 
 
         #指定されたモードごとの動作を行う
