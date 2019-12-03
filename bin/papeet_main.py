@@ -14,6 +14,7 @@ import jaconv
 import timeout_decorator
 import base64
 import picamera
+import pprint
 #from goto import goto, label
 
 from aiy.board import Board, Led
@@ -26,7 +27,8 @@ from papeet_def import *
 #サーボリクエストのフラグ
 SERV_ENABLE_FG = True
 # サーバーのIPアドレス
-SERV_IP = "192.168.3.7:5000"
+#SERV_IP = "192.168.3.7:5000"
+SERV_IP = "172.20.10.6:5000"
 
 #sleepのサンプリングタイム
 SLEEP_SAMPLING_TIME = 0.5
@@ -46,6 +48,10 @@ SERV_REQ_FILE = "../dat/serv_req.json"
 SERV_LOCK_FILE = '/tmp/lockfile_serv'
 
 AFTER_WAIT_RESTART ='../dat/restart'
+
+#アンケート結果ファイル
+SURVEY_RESULT_FILE = "../dat/survey_result.json"
+gscore = 0 #スコア値
 
 #LED用ロックファイル
 gled_lockfile = None
@@ -257,9 +263,15 @@ def exec_picture() :
         print("serv send=",cmd)
         os.system(cmd)
 
+def exec_kaikei():
+        if SERV_ENABLE_FG == True :
+            cmd = "curl -X POST -H 'Accept:application/json' -H 'Content-Type:application/json' -d '{\"TYPE\":\"4\"}' "+SERV_IP
+            print("serv send=",cmd)
+            os.system(cmd)
+
 #振る舞いノードの実行
 def exec_behavior_node(node):
-    global gpre_text
+    global gpre_text, gpretext, gscore
     print(node)
 
     #次の条件分岐で用いる
@@ -268,7 +280,7 @@ def exec_behavior_node(node):
     #ledの実行
     led_mode = int(node['led_mode'])
     if led_mode != 0 :
-        print('exec led')
+        print('exec led led mode=', led_mode)
         exec_led(led_mode)
 
     #pre sleepの実行
@@ -340,6 +352,8 @@ def exec_behavior_node(node):
         response = SentimentGoogle().sentiment(gpre_text)
         print("sentence=", gpre_text, "sentiment respose", response, "score", response['score'])
         score = response['score']
+        #スコア値の保持
+        gscore = score
 
     #bodyの実行
     try :
@@ -432,6 +446,36 @@ def recognize() :
     text = gclient.recognize(language_code=glanguage,hint_phrases=hists)
     return text
 
+#メニューの結果を更新する。
+def update_survey_result(menu, menu_score):
+    with open(SURVEY_RESULT_FILE) as f:
+        d = json.load(f)
+    pprint.pprint(d, width=40)
+
+    #結果の更新 menuの中には、”カレーお願いしますのように、メニュー以外の文字も出てくる”
+    for key in d["RESULT"].keys() :
+        if key in menu :
+            print("key=",key)
+            #if menu in d["RESULT"].keys():
+            score_good = int(d["RESULT"][key][0])
+            score_bad = int(d["RESULT"][key][1])
+            if menu_score >= 0 :
+                d["RESULT"][key][0] = score_good+1
+            else :
+                d["RESULT"][key][1] = score_bad+1
+
+            with open(SURVEY_RESULT_FILE, 'w') as f:
+                json.dump(d, f, indent=4, ensure_ascii=False)
+
+    #アンケートの結果通知
+    if SERV_ENABLE_FG == True :
+        json_text = json.dumps(d, ensure_ascii=False)
+        print("json_text=", json_text)
+
+        cmd = "curl -X POST -H 'Accept:application/json' -H 'Content-Type:application/json' -d '"+ json_text+"' "+SERV_IP
+        print("serv send=",cmd)
+        os.system(cmd)
+
 def locale_language():
     language, _ = locale.getdefaultlocale()
     return language
@@ -444,6 +488,8 @@ def init_camera() :
     #gcamera.rotation=90
 
 if __name__ == '__main__':
+    #update_survey_result("カレーライス", 0)
+    #sys.exit()
 
     #引数の確認
     args = sys.argv
@@ -468,10 +514,13 @@ if __name__ == '__main__':
     gserv_lockfile =fasteners.InterProcessLock(SERV_LOCK_FILE)
     init_camera()
 
+    menu = ""
+    menu_score = 0
     while(True) :
         #シナリオごとの初期化処理
         #前に聞いた文字列をクリアする。
         gpre_text = ""
+        gscore = 0
 
         #待ち状態
         print("start listening")
@@ -503,6 +552,9 @@ if __name__ == '__main__':
         if len(retxt) > 0 :
             print("exec chuumon")
             exec_scenario("../dat/chuumon.csv")
+            if len(gpre_text) > 0 :
+                menu = gpre_text
+                print("menu=", menu)
             continue
 
         #アンケート
@@ -510,6 +562,12 @@ if __name__ == '__main__':
         if len(retxt) > 0 :
             print("exec survey")
             exec_scenario("../dat/kansou.csv")
+            print("gscore2 = ", gscore)
+            if gscore != 0 :
+                menu_score = gscore
+                #アンケート結果の更新
+                update_survey_result(menu, menu_score)
+
             continue
 
         #バイバイ
@@ -532,6 +590,14 @@ if __name__ == '__main__':
             print("写真2")
 
             exec_picture()
+            continue
+
+        #会計
+        retxt = re.findall('会計', ktext)
+        print("会計")
+        if len(retxt) > 0 :
+
+            exec_kaikei()
             continue
 
 

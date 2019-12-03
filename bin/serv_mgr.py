@@ -61,7 +61,7 @@ def serv_move(stype, val) :
     #print(datetime.datetime.now() , "serv_mov", cmd)
     gserv[stype].value = val
 
-#サーボ駆動(滑らか)
+#サーボ駆動(滑らか) scaleが大きい方が、より滑らか。
 def serv_smooth_move(stype, sval, eval, scale) :
     global gserv
     fg = 1
@@ -244,7 +244,7 @@ def exec_serv_thread() :
         if gserv_pattern == ServPattern.BODY_SWING :
             print("body swign")
             #closeをvalue 0 状態にする。
-            scale = 30
+            scale = 35
             serv_smooth_move(ServType.BODY, pre_body_val, 0, scale  )
             serv_smooth_move(ServType.BODY, 0, 0.35, scale  )
             serv_smooth_move(ServType.BODY, 0.35, -0.35, scale  )
@@ -256,11 +256,14 @@ def exec_serv_thread() :
         if gserv_pattern == ServPattern.BODY_SWING_SMALL :
             print("body swing small")
             #closeをvalue 0 状態にする。
-            scale = 20
+            scale = 35
             serv_smooth_move(ServType.BODY, pre_body_val, 0, scale  )
             serv_smooth_move(ServType.BODY, 0, 0.15, scale  )
             serv_smooth_move(ServType.BODY, 0.15, -0.15, scale  )
+            serv_smooth_move(ServType.BODY, -0.15, 0.15, scale  )
+            serv_smooth_move(ServType.BODY, 0.15, -0.15, scale  )
             serv_smooth_move(ServType.BODY, -0.15, 0, scale  )
+
             serv_move(ServType.BODY, None)
 
             pre_body_val = 0

@@ -14,6 +14,7 @@ class CMDType(IntEnum):
     IMG_BILL = 4
     IMG_PIC = 5
     CLEAR = 6
+    SURVEY = 7
 
 CMD_REQ='../data/cmd_req.json'
 MAX_CHARA_LEN = 12
@@ -108,6 +109,19 @@ class MyApp(wx.Frame):
         self.label_2.SetLabel("")
         self.imageCtrl.Show(False)
 
+    def show_survey(self,result):
+        tmp = ""
+        for key in result :
+            print("result ", key, result[key][0], result[key][1])
+            #tmp = tmp + key + ": ◯(" + str(result[key][0]) + "人) ×("+ str(result[key][1])+"人)"+"\n"
+            good_score = str(result[key][0])
+            bad_score = str(result[key][1])
+
+            print("type=", good_score, type(good_score))
+            tmp = tmp + key + ": ◯(" +good_score+ ") ×("+bad_score+")"+"\n"
+
+        self.label_1.SetLabel(tmp)
+
 
     # 1秒間隔で呼ばれる関数
     def update(self, event):
@@ -158,6 +172,9 @@ class MyApp(wx.Frame):
 
             elif type == CMDType.CLEAR:
                 self.clear_all()
+
+            elif type == CMDType.SURVEY:
+                self.show_survey(d['RESULT'])
 
 app = wx.App(False)
 frame = MyApp(None, "MyApp")
